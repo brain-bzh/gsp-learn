@@ -155,7 +155,7 @@ else:
     for graph_name in sorted(graphsname): 
         result[graph_name+'_fmri_sampled'+str(fmin)+str(fmax)]= np.zeros((suj,meas))
         result[graph_name+'_'+str(k)]= np.zeros((suj,meas))
-        result[graph_name+'_tr'+str(fmin)+str(fmax)]= np.zeros((suj,meas))
+        result[graph_name+'_hf'+str(k)]= np.zeros((suj,meas))
 
 ##### Begin Analysis
         
