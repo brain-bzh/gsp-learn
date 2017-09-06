@@ -215,18 +215,18 @@ for s in sujlist:
                                     pipeline_red, cond, y, cv=cv)
                 result[red_name][s,n] = classifiers_scores_red.mean()
 
-#    presult={}        #
-#    for name,data in sorted(result.items()):
-#        presult[name] = data[s,:]
-#    presult=pd.DataFrame(presult)
-#    presult.to_csv('F:/sim/result/result_suj'+str(s+1)+'_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.csv',index=False,sep='\t')
-#    pickle.dump(result, open('F:/sim/result/pickleresults_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.p', "wb" ) )
-#
-#
-#if suj>1:
-#    allsuj_result={}
-#    for name,data in sorted(result.items()):
-#        allsuj_result[name] = data.mean(1)
-#    allsuj_result=pd.DataFrame(allsuj_result)
-#    allsuj_result.to_csv('F:/sim/result/result_all_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.csv',index=False,sep='\t')
-#
+    presult={}        #
+    for name,data in sorted(result.items()):
+        presult[name] = data[s,:]
+    presult=pd.DataFrame(presult)
+    presult.to_csv('F:/sim/result/result_suj'+str(s+1)+'_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.csv',index=False,sep='\t')
+    pickle.dump(result, open('F:/sim/result/pickleresults_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.p', "wb" ) )
+
+
+if suj>1:
+    allsuj_result={}
+    for name,data in sorted(result.items()):
+        allsuj_result[name] = data.mean(1)
+    allsuj_result=pd.DataFrame(allsuj_result)
+    allsuj_result.to_csv('F:/sim/result/result_all_s'+str(ncomp)+'_freq'+str(fmin)+str(fmax)+'_k'+str(k)+'.csv',index=False,sep='\t')
+

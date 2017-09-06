@@ -32,7 +32,8 @@ def create_graph(rest,kind,method,coords,spars,geo_alpha,verbose=0,w_name=None,a
             if 0.< spars < 1.:
                 radius=spars*tmp.max()
             else: radius=spars
-            print(radius)
+            if verbose>0:
+                print('radius:',radius)
             
             if 'binary' in method:
                 mode = 'connectivity'              
@@ -63,7 +64,7 @@ def create_graph(rest,kind,method,coords,spars,geo_alpha,verbose=0,w_name=None,a
             if spars!=0.:
                 radius=spars*tmp.max()
                 if verbose>0:
-                    print(radius)
+                    print('radius:',radius)
                 mode ='connectivity'
             else:
                # tg=True
