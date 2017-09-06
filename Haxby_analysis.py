@@ -120,7 +120,7 @@ graphsname = {'g_kalofolias':{'kind':'kalofolias'},
               'g_fundis':{'kind':'mixed','method':'correlation','spars':1},
               'g_distgeo':{'kind':'geometric','method':'distance','spars':0.2},
                         } 
-verbose=1
+verbose=0
 absolute=True
 geo_alpha=0.0001
 
