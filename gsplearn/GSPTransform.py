@@ -11,21 +11,29 @@ from sklearn.utils.validation import check_array, check_is_fitted
 from sklearn.neighbors import radius_neighbors_graph
 from pygsp import graphs, operators
 from nilearn.connectome import ConnectivityMeasure
+import scipy.io as sio
 
 def sparsify(matrix,k) :           
     sort_idx = np.argsort(np.abs(matrix),None)
     idx=sort_idx[:int(sort_idx.size*k)]# get indexes of sort order (high to low)
     matrix.put(idx, 0)
     return matrix
+
+def f(a,N):
+    return np.argsort(a)[::-1][:N]
       
-def create_graph(rest,kind,method,coords,spars,geo_alpha):            
-        
+def create_graph(rest,kind,method,coords,spars,geo_alpha,verbose=0,w_name=None,absolute=False):            
+    tmp = radius_neighbors_graph(coords, 10000., mode='distance', include_self=False).toarray()  
     if 'geometric' in kind:
-        if spars==0.:
-            radius=1000.
+        if spars==1:
+            radius=10000.
             mode='distance'
         else: 
-            radius=spars
+            if 0.< spars < 1.:
+                radius=spars*tmp.max()
+            else: radius=spars
+            print(radius)
+            
             if 'binary' in method:
                 mode = 'connectivity'              
             elif 'distance' in method:
@@ -42,7 +50,10 @@ def create_graph(rest,kind,method,coords,spars,geo_alpha):
                         GW[i,j]=np.exp(-geo_alpha*(W[i,j]**2))
                     else:
                         GW[i,j]=0
-
+            if verbose>0:
+                print('mean',np.mean(GW[np.nonzero(GW)]),'min',np.min(GW[np.nonzero(GW)]),'max',np.max(GW))
+    elif 'kalofolias' in kind:
+        GW=sio.loadmat(w_name)['W']
     else:
         if 'func' in kind:
             radius=1000.
@@ -50,7 +61,9 @@ def create_graph(rest,kind,method,coords,spars,geo_alpha):
             thr=spars            
         elif 'mixed' in kind:
             if spars!=0.:
-                radius=spars
+                radius=spars*tmp.max()
+                if verbose>0:
+                    print(radius)
                 mode ='connectivity'
             else:
                # tg=True
@@ -63,6 +76,8 @@ def create_graph(rest,kind,method,coords,spars,geo_alpha):
         elif 'covariance' in method:
             correlation_measure = ConnectivityMeasure(kind='covariance')
         correlation_matrix = correlation_measure.fit_transform([rest])[0]
+        if absolute==True:
+            correlation_matrix =np.abs(correlation_matrix)
         if 'thr' in locals():
             if 0.< thr < 1.:
                 correlation_matrix = sparsify(correlation_matrix,spars)
@@ -95,7 +110,7 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
     
     Parameters
     ----------
-    kind : str {"geometric", "functional", "mixed"}
+    kind : str {"geometric", "functional", "mixed","kalofolias"}
      
     rest : array-like = [n_samples, n_features]
            The data used to build functional or mixed graph
@@ -110,7 +125,7 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
         
   
     spars : float 
-        Threshold sparsity: 0: Full (Geometric)
+        Threshold sparsity: 1: Full (Geometric)
                             Between 0 and 1: sparse (Functional)
                             Float (Geometric and Mixed): Radius of neighbourood
         
@@ -118,8 +133,12 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
         Parameter for distance gaussian kernel (default 0.0001)
         For geometric or mixed graph
     
+    verbose: 0 or 1
     
-        
+    w_name : only for Kalofolias - str containing path to graph W in mat file 
+    
+    absolute : True or False (work with absolute functional measures (corr or cov))    
+    
     Attributes
     ----------
     input_shape : tuple
@@ -129,14 +148,16 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
     """
     
     def __init__(self, rest=[0,0], coords=[0], kind='geometric',
-                 method='distance',spars=0, geo_alpha=0.0001):
+                 method='distance',spars=0, geo_alpha=0.0001, verbose=0, w_name=None, absolute=False):
         self.kind = kind
         self.method=method
         self.spars=spars
         self.geo_alpha=geo_alpha
         self.rest=rest
         self.coords=coords
-        
+        self.verbose=verbose
+        self.w_name=w_name
+        self.absolute=absolute
         
     def fit(self, X, y=None):
         """Create Graph.
@@ -151,8 +172,10 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
             Returns self.
         """
         X = check_array(X)
-        
-        self.G = create_graph(self.rest,self.kind,self.method,self.coords,self.spars,self.geo_alpha)
+        if self.kind == None:
+            self.G=[]
+        else:
+            self.G = create_graph(self.rest,self.kind,self.method,self.coords,self.spars,self.geo_alpha,self.verbose,self.w_name)
         # Return the transformer
         return self
 
@@ -165,8 +188,7 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
         Returns
         -------
         X_transformed : array of int of shape = [n_samples, n_features]
-            The array containing the element-wise square roots of the values
-            in `X`
+            The array containing the X transformed in Graph Space
         """
         # Check is fit had been called
         check_is_fitted(self, ['G'])
@@ -177,7 +199,10 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
 #        if X.shape != self.input_shape_:
 #            raise ValueError('Shape of input is different from what was seen'
 #                             'in `fit`')
-        X_hat=operators.gft(self.G, X.T)        
+        if self.kind == None:
+            X_hat = X.T
+        else:
+            X_hat=operators.gft(self.G, X.T)        
         return X_hat.T
         
         
@@ -187,10 +212,15 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        X : array-like, shape [n_samples, n_features]
-            The data used to scale along the features axis.
+        X_hat : array-like, shape [n_samples, n_features]
+            The data in graph space.
+            
+        Returns
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            Data in the original space.
         """
-        check_is_fitted(self, 'scale_')
+        check_is_fitted(self, ['G'])
 
         # Input validation
         X_hat = check_array(X_hat)
@@ -201,5 +231,39 @@ class GraphTransformer(BaseEstimator, TransformerMixin):
                              'in `fit`')
         X=operators.igft(self.G, X_hat.T)        
         return X.T
+    
+    def sample(self, X, k, fmin, fmax):
+        """ GraphSampling - select the k vertices
+        where the signal energy (weighted coherence) is the most concentrated in data X for
+        a frequency band of interest delimited by indices (fmin, fmax), 
         
+        Parameters
+        ----------
+        X : array-like of shape = [n_samples, n_features]
+            The input samples.
+        
+        k : number of vertices to extract
+        
+        fmin : Frequency min (int)
+        
+        fmax: Frequency max (int or 'max')
+        
+        Returns
+        -------
+        indices: indices of selected vertices
+        
+        X_sampled: array of int of shape = [n_samples, k]
+            The array containing the reduced data 'X'
+        """
+        check_is_fitted(self, ['G'])
+        
+        if fmax=='max':
+            Uk = self.G.U[:, fmin:]        
+        else: 
+            Uk = self.G.U[:,fmin:fmax]
 
+        weight_opt = (Uk**2).sum(1)/(Uk[:]**2).sum();   
+        indices=f(weight_opt, k)
+        X_sampled=X.T[indices]      
+    
+        return X_sampled.T, indices
