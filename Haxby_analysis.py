@@ -20,8 +20,6 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from nilearn.datasets import load_mni152_brain_mask,load_mni152_template
 from nilearn.image import resample_img
-from nilearn import plotting, image 
-from nibabel.nifti1 import Nifti1Image
 from sklearn.cross_validation import LeaveOneLabelOut, cross_val_score, permutation_test_score
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.decomposition import PCA
@@ -126,11 +124,23 @@ geo_alpha=0.0001
 
 ##### Begin Analysis
 
+brainmask = load_mni152_brain_mask()
+template = load_mni152_template()
+basc = datasets.fetch_atlas_basc_multiscale_2015(version='sym')['scale444']
+haxby = datasets.fetch_haxby(data_dir='D:/', subjects=6)
+mem = Memory('nilearn_cache')
+masker = NiftiLabelsMasker(labels_img = basc, mask_img = brainmask, 
+                           memory=mem, memory_level=1, verbose=0,
+                           detrend=True, standardize=True, low_pass=0.1, 
+                           high_pass=0.01,t_r=2.5,resampling_target='labels')
+masker.fit()
+
 for suj in range(6):
     result_scores[suj] = {}
     y, session=data_behaviour(suj)
-    data_name= 'D:/haxby2001/mni/roi_mni_'+str(suj)+'.npz'
-    fmri=np.load(data_name)['roi']
+    fmri_filename = haxby.func[suj]
+    haxby_mni = resample_img(fmri_filename,template.affine,template.shape)
+    fmri = masker.transform(haxby_mni)   
     rest_mask = y == b'rest'
     condition_mask = np.logical_or(y == b'cat', y == b'face')
     rest=fmri[rest_mask]
@@ -185,8 +195,6 @@ for suj in range(6):
                             pipeline_red, cond, y, cv=cv)
         result_scores[suj][red_name] = classifiers_scores_red.mean()
 
-import pickle
-import pandas as pd
 pickle.dump(result_scores, open( "Haxby_result_svm_housecat"+str(k)+".p", "wb" ) )
 
 Haxby_result =pd.DataFrame.from_dict(result_scores).transpose()
