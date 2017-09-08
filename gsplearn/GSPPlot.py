@@ -26,7 +26,7 @@ def plot_eigenvector(graph,nb,mask1,mask2=None,bg_img=False):
     
     
     
-def plot_selectedregions(pipeline,masker,weights=None,anova_name='anova',mask2=None,bg_img=False,cut_coords=None):
+def plot_selectedregions(pipeline,masker,weights=None,anova_name='anova',mask2=None,bg_img=False,display_mode='z'):
     if anova_name:
         #index= pipeline.named_steps[anova_name].get_support()
         if weights is None:
@@ -38,9 +38,9 @@ def plot_selectedregions(pipeline,masker,weights=None,anova_name='anova',mask2=N
         weight_img=mask2.inverse_transform(weight_img)
     
     if bg_img:
-        plot_stat_map(weight_img, title='SVM weights',bg_img=bg_img,cut_coords=cut_coords,cmap='bwr')
+        plot_stat_map(weight_img, title='SVM weights',bg_img=bg_img,display_mode=display_mode,cmap='bwr')
     else:
-        plot_stat_map(weight_img, title='SVM weights',cut_coords=cut_coords,cmap='bwr')
+        plot_stat_map(weight_img, title='SVM weights',display_mode=display_mode,cmap='bwr')
         
 
 
